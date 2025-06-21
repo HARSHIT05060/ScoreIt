@@ -11,7 +11,7 @@ dotenv.config();
 const app = express();
 const allowedOrigins = [
     'http://localhost:5173',                // your local frontend
-    'https://scoreit-live.vercel.app'        // your deployed frontend
+    'https://score-it-ruby.vercel.app'        // your deployed frontend
 ];
 app.use(cors({
     origin: allowedOrigins,
