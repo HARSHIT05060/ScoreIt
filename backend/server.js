@@ -11,7 +11,7 @@ dotenv.config();
 const app = express();
 const allowedOrigins = [
     'http://localhost:5173',                // your local frontend
-    'https://your-frontend-url.com'        // your deployed frontend
+    'https://scoreit-live.vercel.app'        // your deployed frontend
 ];
 app.use(cors({
     origin: function (origin, callback) {
