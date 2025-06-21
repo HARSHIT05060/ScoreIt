@@ -9,7 +9,7 @@ import AdminScorerDashboard from './components/AdminScorerDashboard';
 import StartMatch from './pages/StartMatch';
 import ScoringComponent from './components/ScoringComponent';
 import ManageMatches from './components/ManageMatches';
-import MatchSummary from './components/Matchsummary';
+import MatchSummary from './components/MatchSummary';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
