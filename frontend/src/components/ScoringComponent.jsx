@@ -213,7 +213,6 @@ const ScoringComponent = () => {
       setModalType('lineup');
       setShowLineupModal(true);
 
-
     } catch (err) {
       console.error('Error initializing match:', err);
     }
@@ -238,9 +237,11 @@ const ScoringComponent = () => {
       setFirstInningsScore(firstInnings.totalRuns || 0);
       setFirstInningsWickets(firstInnings.totalWickets || 0);
       setFirstInningsOvers(firstInnings.totalOvers || 0);
-      setTarget(firstInnings.totalRuns + 1);
+      // FIXED: Target should be first innings score + 1 (runs needed to win)
+      setTarget((firstInnings.totalRuns || 0) + 1);
     }
   };
+
 
   const handleFetchError = (err) => {
     if (err.code === 'ECONNABORTED') {
@@ -358,6 +359,7 @@ const ScoringComponent = () => {
       return player;
     });
   };
+
   // Calculate required run rate
   const getRequiredRunRate = () => {
     if (currentInnings !== 2 || target === 0) return 0;
@@ -379,6 +381,11 @@ const ScoringComponent = () => {
     const totalBalls = (currentOver - 1) * 6 + (currentBall - 1);
     const maxBalls = match.overs * 6;
 
+    // PRIORITY CHECK: Target achieved in second innings (this should be checked first)
+    if (currentInnings === 2 && currentRuns >= target) {
+      return 'target_achieved';
+    }
+
     // Check if overs completed
     if (totalBalls >= maxBalls) {
       return 'overs_completed';
@@ -387,11 +394,6 @@ const ScoringComponent = () => {
     // Check if all wickets fallen (assuming 10 wickets max)
     if (currentWickets >= 10) {
       return 'all_out';
-    }
-
-    // Check if target achieved in second innings
-    if (currentInnings === 2 && currentRuns >= target) {
-      return 'target_achieved';
     }
 
     return null;
@@ -404,7 +406,7 @@ const ScoringComponent = () => {
       setFirstInningsScore(currentRuns);
       setFirstInningsWickets(currentWickets);
       setFirstInningsOvers(currentOver - 1 + (currentBall - 1) / 6);
-      setTarget(currentRuns + 1);
+      setTarget(currentRuns + 1); // Target for second team
       return null;
     } else {
       // Second innings completed
@@ -412,16 +414,19 @@ const ScoringComponent = () => {
       const bowlingTeam = getBowlingTeam();
 
       if (currentRuns >= target) {
+        // Batting team won
         return {
           winner: battingTeam,
           result: `${battingTeam} won by ${10 - currentWickets} wickets`,
           margin: `${10 - currentWickets} wickets`
         };
       } else {
+        // Bowling team won (first batting team)
+        const runsDifference = target - currentRuns - 1;
         return {
           winner: bowlingTeam,
-          result: `${bowlingTeam} won by ${target - currentRuns - 1} runs`,
-          margin: `${target - currentRuns - 1} runs`
+          result: `${bowlingTeam} won by ${runsDifference} runs`,
+          margin: `${runsDifference} runs`
         };
       }
     }
@@ -509,7 +514,11 @@ const ScoringComponent = () => {
     setCurrentBall(1);
     setOverBalls([]);
     setCurrentOverRuns(0);
-    swapStrikers();
+
+    // Swap strikers after over completion
+    setTimeout(() => {
+      swapStrikers();
+    }, 0);
 
     const scoreData = {
       innings: currentInnings,
@@ -518,8 +527,8 @@ const ScoringComponent = () => {
       overs: newOver,
       balls: 1,
       overBalls: [],
-      striker,
-      nonStriker,
+      striker: nonStriker, // Will be the new striker
+      nonStriker: striker, // Will be the new non-striker
       currentBowler,
       extras,
       lastBall: {
@@ -529,20 +538,22 @@ const ScoringComponent = () => {
     };
     saveMatchData(scoreData);
 
-    setModalType('bowler');
-    setShowBowlerModal(true);
-
+    // Check if innings should end due to overs completion
     if (newOver > match.overs) {
       handleEndInnings();
+      return;
     }
-  };
 
+    setModalType('bowler');
+    setShowBowlerModal(true);
+  };
 
   const handleScoring = (runs) => {
     if (!currentBowler) {
       alert('Please select a bowler first');
       return;
     }
+
     recordBallInHistory();
 
     const newRuns = currentRuns + runs;
@@ -553,35 +564,72 @@ const ScoringComponent = () => {
     setOverBalls(newOverBalls);
     setCurrentOverRuns(newOverRuns);
 
+    // IMMEDIATE CHECK: If target achieved, end match immediately
+    if (currentInnings === 2 && newRuns >= target) {
+      // Update state first
+      setTimeout(() => {
+        const result = determineMatchResult();
+        if (result) {
+          setMatchResult(result);
+          setShowResultModal(true);
+        }
+      }, 100);
+
+      // Save final score
+      const scoreData = {
+        innings: currentInnings,
+        runs: newRuns,
+        wickets: currentWickets,
+        overs: currentOver,
+        balls: currentBall + 1,
+        overBalls: newOverBalls,
+        striker,
+        nonStriker,
+        currentBowler,
+        extras,
+        lastBall: {
+          type: 'winning_run',
+          runs: runs,
+          ball: `${currentOver}.${currentBall}`,
+          bowler: currentBowler
+        }
+      };
+      saveMatchData(scoreData);
+      return; // Exit immediately, don't continue with normal ball processing
+    }
+
     // Swap strikers on odd runs
     if (runs % 2 === 1) {
-      swapStrikers();
+      setTimeout(() => {
+        swapStrikers();
+      }, 0);
     }
 
-    let newBall = currentBall;
+    let newBall = currentBall + 1;
     let newOver = currentOver;
-    let resetOverBalls = newOverBalls;
 
-    if (currentBall === 6) {
+    // Check if over is complete (6 balls bowled)
+    if (newBall > 6) {
       handleOverCompletion();
-    } else {
-      newBall = currentBall + 1;
-      setCurrentBall(newBall);
+      return; // Exit early as handleOverCompletion will handle the rest
     }
 
-    // Check for match end
-    const matchEndReason = checkMatchEnd();
-    if (matchEndReason) {
-      const result = determineMatchResult();
-      if (result) {
-        setMatchResult(result);
-        setShowResultModal(true);
-      } else if (currentInnings === 1) {
-        // End first innings
-        handleEndInnings();
-        return;
+    setCurrentBall(newBall);
+
+    // Check for other match end conditions after updating state
+    setTimeout(() => {
+      const matchEndReason = checkMatchEnd();
+      if (matchEndReason && matchEndReason !== 'target_achieved') {
+        const result = determineMatchResult();
+        if (result) {
+          setMatchResult(result);
+          setShowResultModal(true);
+        } else if (currentInnings === 1) {
+          handleEndInnings();
+          return;
+        }
       }
-    }
+    }, 0);
 
     const scoreData = {
       innings: currentInnings,
@@ -589,7 +637,7 @@ const ScoringComponent = () => {
       wickets: currentWickets,
       overs: newOver,
       balls: newBall,
-      overBalls: resetOverBalls,
+      overBalls: newOverBalls,
       striker,
       nonStriker,
       currentBowler,
@@ -605,6 +653,11 @@ const ScoringComponent = () => {
   };
 
   const handleWicket = () => {
+    if (!currentBowler) {
+      alert('Please select a bowler first');
+      return;
+    }
+
     recordBallInHistory();
 
     const newWickets = currentWickets + 1;
@@ -616,14 +669,17 @@ const ScoringComponent = () => {
     // Add dismissed player to out players list
     setOutPlayers(prev => [...prev, striker]);
 
-    let newBall = currentBall;
+    let newBall = currentBall + 1;
     let newOver = currentOver;
-    let resetOverBalls = newOverBalls;
+    let overComplete = false;
 
-    if (currentBall === 6) {
+    // Check if over is complete (6 balls bowled)
+    if (newBall > 6) {
+      overComplete = true;
+      newBall = 1;
+      newOver = currentOver + 1;
       handleOverCompletion();
     } else {
-      newBall = currentBall + 1;
       setCurrentBall(newBall);
     }
 
@@ -633,14 +689,14 @@ const ScoringComponent = () => {
       wickets: newWickets,
       overs: newOver,
       balls: newBall,
-      overBalls: resetOverBalls,
+      overBalls: newOverBalls,
       striker,
       nonStriker,
       currentBowler,
       extras,
       lastBall: {
         type: 'wicket',
-        ball: `${newOver}.${newBall - 1}`
+        ball: `${currentOver}.${currentBall}`
       }
     };
     saveMatchData(scoreData);
@@ -649,34 +705,39 @@ const ScoringComponent = () => {
     const battingPlayers = getBattingTeamPlayers();
     if (newWickets >= 10 || nextBatsmanIndex >= battingPlayers.length) {
       // All out - end innings
-      const result = determineMatchResult();
-      if (result) {
-        setMatchResult(result);
-        setShowResultModal(true);
-      } else if (currentInnings === 1) {
-        handleEndInnings();
-      }
+      setTimeout(() => {
+        const result = determineMatchResult();
+        if (result) {
+          setMatchResult(result);
+          setShowResultModal(true);
+        } else if (currentInnings === 1) {
+          handleEndInnings();
+        }
+      }, 100);
       return;
     }
 
     // Check for match end
-    const matchEndReason = checkMatchEnd();
-    if (matchEndReason) {
-      const result = determineMatchResult();
-      if (result) {
-        setMatchResult(result);
-        setShowResultModal(true);
-      } else if (currentInnings === 1) {
-        handleEndInnings();
-        return;
+    setTimeout(() => {
+      const matchEndReason = checkMatchEnd();
+      if (matchEndReason) {
+        const result = determineMatchResult();
+        if (result) {
+          setMatchResult(result);
+          setShowResultModal(true);
+        } else if (currentInnings === 1) {
+          handleEndInnings();
+          return;
+        }
       }
+    }, 0);
+
+    // Don't show striker modal if over is complete (bowler modal will show instead)
+    if (!overComplete) {
+      setModalType('striker');
+      setShowPlayerModal(true);
     }
-
-    setModalType('striker');
-    setShowPlayerModal(true);
-    // Over complete?
   };
-
   const handleExtra = (extraType, runs = 1) => {
     recordBallInHistory();
 
@@ -707,16 +768,50 @@ const ScoringComponent = () => {
     setCurrentOverRuns(newOverRuns);
     setExtras(newExtras);
 
-    // Bye and Leg Bye count as balls
-    if (extraType === 'Bye' || extraType === 'Leg Bye') {
-      let newBall = currentBall;
-      let newOver = currentOver;
-      let resetOverBalls = newOverBalls;
+    // IMMEDIATE CHECK: If target achieved, end match immediately
+    if (currentInnings === 2 && newRuns >= target) {
+      setTimeout(() => {
+        const result = determineMatchResult();
+        if (result) {
+          setMatchResult(result);
+          setShowResultModal(true);
+        }
+      }, 100);
 
-      if (currentBall === 6) {
+      // Save final score
+      const scoreData = {
+        innings: currentInnings,
+        runs: newRuns,
+        wickets: currentWickets,
+        overs: currentOver,
+        balls: currentBall,
+        overBalls: newOverBalls,
+        striker,
+        nonStriker,
+        currentBowler,
+        extras: newExtras,
+        lastBall: {
+          type: 'winning_extra',
+          extraType: extraType,
+          runs: runs,
+          ball: `${currentOver}.${currentBall}`
+        }
+      };
+      saveMatchData(scoreData);
+      return; // Exit immediately
+    }
+
+    // Continue with normal extra processing...
+    // Bye and Leg Bye count as balls, Wide and No Ball don't
+    if (extraType === 'Bye' || extraType === 'Leg Bye') {
+      let newBall = currentBall + 1;
+      let newOver = currentOver;
+
+      // Check if over is complete
+      if (newBall > 6) {
         handleOverCompletion();
+        return;
       } else {
-        newBall = currentBall + 1;
         setCurrentBall(newBall);
       }
 
@@ -726,7 +821,7 @@ const ScoringComponent = () => {
         wickets: currentWickets,
         overs: newOver,
         balls: newBall,
-        overBalls: resetOverBalls,
+        overBalls: newOverBalls,
         striker,
         nonStriker,
         currentBowler,
@@ -740,6 +835,7 @@ const ScoringComponent = () => {
       };
       saveMatchData(scoreData);
     } else {
+      // Wide and No Ball - ball doesn't count
       const scoreData = {
         innings: currentInnings,
         runs: newRuns,
@@ -761,15 +857,17 @@ const ScoringComponent = () => {
       saveMatchData(scoreData);
     }
 
-    // Check for match end after extras
-    const matchEndReason = checkMatchEnd();
-    if (matchEndReason) {
-      const result = determineMatchResult();
-      if (result) {
-        setMatchResult(result);
-        setShowResultModal(true);
+    // Check for other match end conditions
+    setTimeout(() => {
+      const matchEndReason = checkMatchEnd();
+      if (matchEndReason && matchEndReason !== 'target_achieved') {
+        const result = determineMatchResult();
+        if (result) {
+          setMatchResult(result);
+          setShowResultModal(true);
+        }
       }
-    }
+    }, 0);
   };
 
   const handleEndOver = () => {
@@ -814,17 +912,24 @@ const ScoringComponent = () => {
   const handleEndInnings = () => {
     if (currentInnings === 1) {
       // Save first innings data
-      setFirstInningsScore(currentRuns);
-      setFirstInningsWickets(currentWickets);
-      setFirstInningsOvers(currentOver);
+      const finalScore = currentRuns;
+      const finalWickets = currentWickets;
+      const finalOvers = currentOver - 1 + (currentBall - 1) / 6;
+
+      setFirstInningsScore(finalScore);
+      setFirstInningsWickets(finalWickets);
+      setFirstInningsOvers(finalOvers);
+      // FIXED: Set correct target
+      setTarget(finalScore + 1);
 
       // Reset for second innings
       setCurrentInnings(2);
       setCurrentRuns(0);
       setCurrentWickets(0);
-      setCurrentOver(0);
-      setCurrentBall(0);
+      setCurrentOver(1);
+      setCurrentBall(1);
       setOverBalls([]);
+      setCurrentOverRuns(0);
       setBallHistory([]);
       setExtras({ wides: 0, noBalls: 0, byes: 0, legByes: 0, total: 0 });
 
@@ -844,15 +949,24 @@ const ScoringComponent = () => {
       setNextBatsmanIndex(2);
       setOutPlayers([]);
 
-      // Show lineup modal again for new inning
+      // Clear current players
+      setStriker('');
+      setNonStriker('');
+      setCurrentBowler('');
+
+      // Show lineup modal again for new innings
       setModalType('lineup');
       setShowLineupModal(true);
     } else {
-      // Match complete
+      // Match complete - determine final result
+      const result = determineMatchResult();
+      if (result) {
+        setMatchResult(result);
+      }
       setShowResultModal(true);
-      // calculateMatchResult(); // your logic to compare scores
     }
   };
+
   const handlePlayerSelection = (playerId, playerName) => {
     if (modalType === 'striker') {
       setStriker(playerName);
@@ -866,6 +980,7 @@ const ScoringComponent = () => {
     setShowPlayerModal(false);
     setShowBowlerModal(false);
   };
+
   const getAvailableBatsmen = () => {
     const battingPlayers = getBattingTeamPlayers();
     return battingPlayers.filter(player => {
@@ -884,6 +999,7 @@ const ScoringComponent = () => {
       return playerName && playerName !== currentBowler;
     });
   };
+
   const handleLineupSetup = (selectedStriker, selectedNonStriker, selectedBowler) => {
     setStriker(selectedStriker);
     setNonStriker(selectedNonStriker);
@@ -908,12 +1024,104 @@ const ScoringComponent = () => {
     };
     saveMatchData(scoreData);
   };
-  const handleResetClick = () => {
-    const confirmReset = window.confirm('Are you sure you want to reset the match?');
+
+  const handleResetClick = async () => {
+    const confirmReset = window.confirm('Are you sure you want to complete this match and return to dashboard?');
+
     if (confirmReset) {
-      resetMatch();
+      try {
+        // Update match status to "completed" using the existing score endpoint
+        const userData = JSON.parse(sessionStorage.getItem('user') || '{}');
+        const token = userData.token;
+
+        // Prepare final match data for completion
+        const finalScoreData = {
+          innings: currentInnings,
+          runs: currentRuns,
+          wickets: currentWickets,
+          overs: currentOver,
+          balls: currentBall, // Don't subtract 1 here for match completion
+          overBalls: overBalls,
+          striker,
+          nonStriker,
+          currentBowler,
+          extras,
+          status: 'completed',  // Changed from 'complete' to 'completed' for consistency
+          finalResult: matchResult || {
+            winner: null,
+            result: 'Match completed manually',
+            margin: 'N/A'
+          },
+          completedAt: new Date().toISOString(),
+          lastBall: {
+            type: 'match_completed',
+            ball: `${currentOver}.${currentBall}`,
+            runs: 0
+          },
+          action: 'complete_match'
+        };
+
+        console.log('Completing match with data:', finalScoreData);
+
+        // Use the existing score endpoint to complete the match
+        const response = await axios.put(
+          `${import.meta.env.VITE_API_BASE_URL}/api/matches/${id}/score`,
+          finalScoreData,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        if (response.data.success) {
+          console.log('Match completed successfully:', response.data);
+
+          // Clear any local storage data related to this match
+          sessionStorage.removeItem('currentMatchData');
+          sessionStorage.removeItem(`match_${id}_data`);
+
+          // Show success message
+          alert('Match completed successfully!');
+
+          // Navigate to dashboard
+          navigate('/dashboard');
+        } else {
+          throw new Error('Failed to complete match');
+        }
+
+      } catch (error) {
+        console.error('Error completing match:', error);
+
+        // More detailed error handling
+        if (error.response) {
+          // Server responded with error status
+          console.error('Server error:', error.response.data);
+          alert(`Failed to complete match: ${error.response.data.message || 'Server error'}`);
+        } else if (error.request) {
+          // Request was made but no response received
+          console.error('Network error:', error.request);
+          alert('Network error: Could not reach server. Please check your connection.');
+        } else {
+          // Something else happened
+          console.error('Error:', error.message);
+          alert(`Error completing match: ${error.message}`);
+        }
+
+        // Ask user if they want to navigate anyway
+        const forceNavigate = window.confirm(
+          'Match completion failed. Do you want to return to dashboard anyway? (Match data may not be saved)'
+        );
+
+        if (forceNavigate) {
+          navigate('/dashboard');
+        }
+      }
     }
   };
+
+
   const resetMatch = async () => {
 
     try {

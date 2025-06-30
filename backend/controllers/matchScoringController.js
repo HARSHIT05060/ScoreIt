@@ -57,7 +57,10 @@ exports.updateMatchScore = async (req, res) => {
             bowler,
             currentBowler,
             lastBall,
-            action
+            action,
+            status,           // Added status field
+            finalResult,      // Added finalResult field
+            completedAt       // Added completedAt field
         } = req.body;
 
         const match = await Match.findById(id);
@@ -71,6 +74,28 @@ exports.updateMatchScore = async (req, res) => {
             match.startTime = new Date();
         }
 
+        // Handle match completion
+        if (action === 'complete_match' || status === 'complete') {
+            match.status = 'completed';
+            match.endTime = completedAt ? new Date(completedAt) : new Date();
+
+            // Store final result if provided
+            if (finalResult) {
+                match.result = {
+                    winner: finalResult.winner,
+                    result: finalResult.result,
+                    margin: finalResult.margin,
+                    completedAt: match.endTime
+                };
+            }
+
+            // Mark current innings as completed
+            const currentInningsData = match.innings.find(inning => inning.innings === innings);
+            if (currentInningsData) {
+                currentInningsData.isCompleted = true;
+            }
+        }
+
         // Find or create current innings
         let currentInnings = match.innings.find(inning => inning.innings === innings);
         if (!currentInnings) {
@@ -81,8 +106,18 @@ exports.updateMatchScore = async (req, res) => {
         // Update current innings data
         currentInnings.totalRuns = runs || 0;
         currentInnings.totalWickets = wickets || 0;
-        currentInnings.totalOvers = Math.floor((overs - 1)) + ((balls - 1) / 6);
-        currentInnings.totalBalls = ((overs - 1) * 6) + (balls - 1);
+
+        // Fix: Don't subtract 1 when completing match, only during normal play
+        if (action === 'complete_match') {
+            // For match completion, use actual overs and balls without subtracting
+            currentInnings.totalOvers = Math.floor((overs - 1)) + (balls / 6);
+            currentInnings.totalBalls = ((overs - 1) * 6) + balls;
+        } else {
+            // For normal scoring, subtract 1 as usual
+            currentInnings.totalOvers = Math.floor((overs - 1)) + ((balls - 1) / 6);
+            currentInnings.totalBalls = ((overs - 1) * 6) + (balls - 1);
+        }
+
         currentInnings.currentStriker = striker || '';
         currentInnings.currentNonStriker = nonStriker || '';
 
@@ -90,8 +125,8 @@ exports.updateMatchScore = async (req, res) => {
         const activeBowler = currentBowler || bowler || '';
         currentInnings.currentBowler = activeBowler;
 
-        // Add ball to history if it's not an undo action
-        if (lastBall && action !== 'undo') {
+        // Add ball to history if it's not an undo action and not a match completion
+        if (lastBall && action !== 'undo' && action !== 'complete_match') {
             const ballData = {
                 over: overs,
                 ball: balls - 1,
@@ -171,11 +206,21 @@ exports.updateMatchScore = async (req, res) => {
         if (innings === 1) {
             match.matchStats.teamAScore.runs = runs || 0;
             match.matchStats.teamAScore.wickets = wickets || 0;
-            match.matchStats.teamAScore.overs = Math.floor((overs - 1)) + ((balls - 1) / 6);
+            // Fix: Don't subtract 1 when completing match
+            if (action === 'complete_match') {
+                match.matchStats.teamAScore.overs = Math.floor((overs - 1)) + (balls / 6);
+            } else {
+                match.matchStats.teamAScore.overs = Math.floor((overs - 1)) + ((balls - 1) / 6);
+            }
         } else {
             match.matchStats.teamBScore.runs = runs || 0;
             match.matchStats.teamBScore.wickets = wickets || 0;
-            match.matchStats.teamBScore.overs = Math.floor((overs - 1)) + ((balls - 1) / 6);
+            // Fix: Don't subtract 1 when completing match
+            if (action === 'complete_match') {
+                match.matchStats.teamBScore.overs = Math.floor((overs - 1)) + (balls / 6);
+            } else {
+                match.matchStats.teamBScore.overs = Math.floor((overs - 1)) + ((balls - 1) / 6);
+            }
         }
 
         await match.save();
@@ -208,6 +253,7 @@ exports.updateMatchScore = async (req, res) => {
             });
 
         const currentInningsData = populatedMatch.innings.find(inning => inning.innings === innings);
+
         // *** HELPER FUNCTION: Get bowler name with multiple fallbacks ***
         const getBowlerName = () => {
             // Try populated currentBowler first
@@ -240,7 +286,7 @@ exports.updateMatchScore = async (req, res) => {
 
         res.json({
             success: true,
-            message: 'Score updated successfully',
+            message: action === 'complete_match' ? 'Match completed successfully' : 'Score updated successfully',
             match: {
                 id: populatedMatch._id,
                 status: populatedMatch.status,
@@ -248,7 +294,9 @@ exports.updateMatchScore = async (req, res) => {
                 innings: populatedMatch.innings,
                 currentBowler: bowlerName,
                 currentStriker: currentInningsData?.currentStriker?.name || 'Unknown',
-                currentNonStriker: currentInningsData?.currentNonStriker?.name || 'Unknown'
+                currentNonStriker: currentInningsData?.currentNonStriker?.name || 'Unknown',
+                result: populatedMatch.result || null,
+                endTime: populatedMatch.endTime || null
             }
         });
     } catch (err) {
