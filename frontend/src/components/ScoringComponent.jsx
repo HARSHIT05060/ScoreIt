@@ -822,7 +822,7 @@ const ScoringComponent = () => {
       setCurrentInnings(2);
       setCurrentRuns(0);
       setCurrentWickets(0);
-      setCurrentOver(1);
+      setCurrentOver(0);
       setCurrentBall(0);
       setOverBalls([]);
       setBallHistory([]);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -841,7 +841,7 @@ const MatchSummary = () => {
                                     background: 'linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.05) 50%, transparent 70%)',
                                     pointerEvents: 'none'
                                 }} />
-                                
+
                                 <div style={{
                                     position: 'relative',
                                     zIndex: 1
@@ -857,8 +857,8 @@ const MatchSummary = () => {
                                         {getMatchResult && getMatchResult()}
                                     </div>
                                     {match && match.status === 'completed' && (
-                                        <div style={{ 
-                                            fontSize: isMobile ? '20px' : '28px', 
+                                        <div style={{
+                                            fontSize: isMobile ? '20px' : '28px',
                                             filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))'
                                         }}>
                                             🏆
@@ -886,14 +886,14 @@ const MatchSummary = () => {
                                         overflow: 'hidden',
                                         transition: 'transform 0.3s ease, box-shadow 0.3s ease'
                                     }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
-                                        e.currentTarget.style.boxShadow = '0 12px 40px rgba(255, 107, 53, 0.4)';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                                        e.currentTarget.style.boxShadow = '0 8px 32px rgba(255, 107, 53, 0.3)';
-                                    }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+                                            e.currentTarget.style.boxShadow = '0 12px 40px rgba(255, 107, 53, 0.4)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                                            e.currentTarget.style.boxShadow = '0 8px 32px rgba(255, 107, 53, 0.3)';
+                                        }}
                                     >
                                         {/* Subtle shine effect */}
                                         <div style={{
@@ -906,7 +906,7 @@ const MatchSummary = () => {
                                             animation: 'shine 3s infinite',
                                             pointerEvents: 'none'
                                         }} />
-                                        
+
                                         <div style={{
                                             display: 'flex',
                                             alignItems: 'center',
@@ -944,8 +944,8 @@ const MatchSummary = () => {
                                                 }}>
                                                     {getTeamShortName && getTeamShortName(match.teamA)}
                                                 </div>
-                                                <div style={{ 
-                                                    fontSize: isMobile ? '24px' : '32px', 
+                                                <div style={{
+                                                    fontSize: isMobile ? '24px' : '32px',
                                                     fontWeight: '900',
                                                     color: 'white',
                                                     lineHeight: 1,
@@ -953,8 +953,8 @@ const MatchSummary = () => {
                                                 }}>
                                                     {teamAScore.runs}/{teamAScore.wickets}
                                                 </div>
-                                                <div style={{ 
-                                                    fontSize: isMobile ? '13px' : '16px', 
+                                                <div style={{
+                                                    fontSize: isMobile ? '13px' : '16px',
                                                     color: 'rgba(255, 255, 255, 0.9)',
                                                     marginTop: '4px',
                                                     fontWeight: '500',
@@ -979,14 +979,14 @@ const MatchSummary = () => {
                                         overflow: 'hidden',
                                         transition: 'transform 0.3s ease, box-shadow 0.3s ease'
                                     }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
-                                        e.currentTarget.style.boxShadow = '0 12px 40px rgba(220, 53, 69, 0.4)';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                                        e.currentTarget.style.boxShadow = '0 8px 32px rgba(220, 53, 69, 0.3)';
-                                    }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+                                            e.currentTarget.style.boxShadow = '0 12px 40px rgba(220, 53, 69, 0.4)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                                            e.currentTarget.style.boxShadow = '0 8px 32px rgba(220, 53, 69, 0.3)';
+                                        }}
                                     >
                                         {/* Subtle shine effect */}
                                         <div style={{
@@ -999,7 +999,7 @@ const MatchSummary = () => {
                                             animation: 'shine 3s infinite 1.5s',
                                             pointerEvents: 'none'
                                         }} />
-                                        
+
                                         <div style={{
                                             display: 'flex',
                                             alignItems: 'center',
@@ -1026,8 +1026,8 @@ const MatchSummary = () => {
                                             }}>
                                                 {getTeamShortName && getTeamShortName(match.teamB).charAt(0)}
                                             </div>
-                                            <div style={{ 
-                                                minWidth: 0, 
+                                            <div style={{
+                                                minWidth: 0,
                                                 flex: 1,
                                                 textAlign: isMobile ? 'left' : 'right'
                                             }}>
@@ -1043,8 +1043,8 @@ const MatchSummary = () => {
                                                 }}>
                                                     {getTeamShortName && getTeamShortName(match.teamB)}
                                                 </div>
-                                                <div style={{ 
-                                                    fontSize: isMobile ? '24px' : '32px', 
+                                                <div style={{
+                                                    fontSize: isMobile ? '24px' : '32px',
                                                     fontWeight: '900',
                                                     color: 'white',
                                                     lineHeight: 1,
@@ -1052,8 +1052,8 @@ const MatchSummary = () => {
                                                 }}>
                                                     {teamBScore.runs}/{teamBScore.wickets}
                                                 </div>
-                                                <div style={{ 
-                                                    fontSize: isMobile ? '13px' : '16px', 
+                                                <div style={{
+                                                    fontSize: isMobile ? '13px' : '16px',
                                                     color: 'rgba(255, 255, 255, 0.9)',
                                                     marginTop: '4px',
                                                     fontWeight: '500',
