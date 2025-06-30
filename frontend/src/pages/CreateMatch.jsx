@@ -3,10 +3,74 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './CreateMatch.css';
+import { CheckCircle, X } from 'lucide-react';
+
+const SuccessPopup = ({ isOpen, onClose, title, message }) => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  const handleClose = () => {
+    setIsVisible(false);
+    setTimeout(() => onClose(), 300); // Wait for animation to complete
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div
+        className={`absolute inset-0 bg-black transition-opacity duration-300 ${isVisible ? 'opacity-50' : 'opacity-0'
+          }`}
+        onClick={handleClose}
+      />
+
+      {/* Modal */}
+      <div
+        className={`relative bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 transform transition-all duration-300 ${isVisible ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
+          }`}
+      >
+        {/* Close button */}
+        <button
+          onClick={handleClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <X size={20} />
+        </button>
+
+        {/* Content */}
+        <div className="flex items-center space-x-4">
+          <div className="flex-shrink-0">
+            <CheckCircle className="w-8 h-8 text-green-500" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">
+              {title}
+            </h3>
+            <p className="text-gray-600">
+              {message}
+            </p>
+          </div>
+        </div>
+
+        {/* Action button (optional) */}
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={handleClose}
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium"
+          >
+            Continue
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 const CreateMatch = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -145,9 +209,13 @@ const CreateMatch = () => {
 
       console.log('✅ Match created successfully:', result);
 
-      // CHANGE: Navigate to match/start/:id instead of matches/start/:id
-      navigate(`/match/start/${result.match._id || result.match.id}`);
-      alert('Match created successfully!');
+      // CHANGED: Show professional popup instead of alert
+      setShowSuccessPopup(true);
+
+      // Navigate after a short delay to let user see the success message
+      setTimeout(() => {
+        navigate(`/match/start/${result.match._id || result.match.id}`);
+      }, 2000);
 
     } catch (error) {
       console.error('❌ Error creating match:', error);
@@ -559,6 +627,13 @@ const CreateMatch = () => {
           </button>
         )}
       </div>
+      <SuccessPopup
+        isOpen={showSuccessPopup}
+        onClose={() => setShowSuccessPopup(false)}
+        title="Match Created Successfully!"
+        message="Your match has been created successfully. You will be redirected to the match start page."
+        duration={0} // Manual close only, since we're navigating programmatically
+      />
     </div>
   );
 };
