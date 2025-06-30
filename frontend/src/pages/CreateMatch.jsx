@@ -52,7 +52,7 @@ const CreateMatch = () => {
 
   // Create team API call
   const createTeamAPI = async (team) => {
-    const res = await fetch("${import.meta.env.VITE_API_BASE_URL}/api/teams", {
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/teams`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -61,7 +61,13 @@ const CreateMatch = () => {
       body: JSON.stringify(team),
     });
 
-    const data = await res.json();
+    let data;
+
+    try {
+      data = await res.json();
+    } catch {
+      data = {}; // fallback in case the response has no JSON
+    }
 
     if (!res.ok) {
       throw new Error(data.message || "Failed to create team");
